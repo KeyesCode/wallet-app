@@ -2,12 +2,13 @@ import React, { useState } from "react";
 import { View, Text, TextInput, Button, Alert, StyleSheet } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
-import { loadMnemonic } from "../crypto/vault";
 import { sendEth } from "../crypto/evm";
+import { useWallet } from "../context/WalletContext";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Send">;
 
 export default function SendScreen({ navigation }: Props) {
+  const { mnemonic } = useWallet();
   const [to, setTo] = useState("");
   const [amountEth, setAmountEth] = useState("0.001");
   const [sending, setSending] = useState(false);
@@ -15,13 +16,14 @@ export default function SendScreen({ navigation }: Props) {
   const chainId = Number(process.env.EXPO_PUBLIC_EVM_CHAIN_ID ?? "11155111");
 
   const onSend = async () => {
+    if (!mnemonic) {
+      Alert.alert("Error", "Wallet not unlocked");
+      navigation.replace("Unlock");
+      return;
+    }
+
     try {
       setSending(true);
-      const mnemonic = await loadMnemonic();
-      if (!mnemonic) {
-        navigation.replace("Welcome");
-        return;
-      }
       const txHash = await sendEth({
         mnemonic,
         to: to.trim(),

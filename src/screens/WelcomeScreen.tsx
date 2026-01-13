@@ -3,7 +3,6 @@ import { View, Text, TextInput, Button, Alert, StyleSheet } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { generateMnemonic, validateMnemonic } from "../crypto/evm";
-import { storeMnemonic } from "../crypto/vault";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Welcome">;
 
@@ -13,9 +12,11 @@ export default function WelcomeScreen({ navigation }: Props) {
   const onCreate = async () => {
     const m = generateMnemonic();
     setMnemonic(m);
-    await storeMnemonic(m);
-    Alert.alert("Wallet created", "Mnemonic stored (encrypted). Save it safely!");
-    navigation.replace("Wallet");
+    Alert.alert(
+      "Wallet created",
+      "Save your mnemonic safely! You'll set a PIN next."
+    );
+    navigation.navigate("SetPin", { mnemonic: m });
   };
 
   const onImport = async () => {
@@ -24,8 +25,7 @@ export default function WelcomeScreen({ navigation }: Props) {
       Alert.alert("Invalid mnemonic", "Check spelling and word order.");
       return;
     }
-    await storeMnemonic(m);
-    navigation.replace("Wallet");
+    navigation.navigate("SetPin", { mnemonic: m });
   };
 
   return (
@@ -59,4 +59,3 @@ const styles = StyleSheet.create({
     minHeight: 90,
   },
 });
-
