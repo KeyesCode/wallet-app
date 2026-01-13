@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -48,6 +48,7 @@ export default function WalletScreen({ navigation }: Props) {
   const [showAccountPicker, setShowAccountPicker] = useState(false);
   const [showNetworkPicker, setShowNetworkPicker] = useState(false);
   const [isAddingAccount, setIsAddingAccount] = useState(false);
+  const isRefreshingRef = useRef(false);
 
   // Update address when active account changes
   useEffect(() => {
@@ -96,26 +97,61 @@ export default function WalletScreen({ navigation }: Props) {
   );
 
   const refresh = useCallback(async () => {
-    if (!address || !activeNetwork) return;
+    if (!address || !activeNetwork) {
+      setRefreshing(false);
+      isRefreshingRef.current = false;
+      return;
+    }
+
+    // Prevent concurrent refreshes
+    if (isRefreshingRef.current) {
+      return;
+    }
 
     try {
+      isRefreshingRef.current = true;
       setRefreshing(true);
       const tokens = getAllTokens(activeChainId);
-      const balances = await fetchTokenBalances(tokens, address, activeNetwork.rpcUrl);
-      setTokenBalances(balances);
-      await fetchTransactions(undefined, false);
+      
+      // Fetch balances and transactions in parallel
+      // Use Promise.allSettled so one failure doesn't block the other
+      const [balanceResult, txResult] = await Promise.allSettled([
+        fetchTokenBalances(tokens, address, activeNetwork.rpcUrl),
+        fetchTransactions(undefined, false),
+      ]);
+
+      // Handle balance result
+      if (balanceResult.status === "fulfilled") {
+        setTokenBalances(balanceResult.value);
+      } else {
+        console.error("Balance fetch error:", balanceResult.reason);
+        // Don't show alert here as it might be a network issue - just log
+      }
+
+      // Transaction fetch handles its own errors and state updates
+      if (txResult.status === "rejected") {
+        console.error("Transaction fetch error:", txResult.reason);
+        // fetchTransactions already shows an alert, so we just log here
+      }
     } catch (e: any) {
-      Alert.alert("Balance error", e.message ?? "Unknown error");
+      console.error("Refresh error:", e);
+      // Only show alert for unexpected errors
+      if (e.message && !e.message.includes("Transaction history")) {
+        Alert.alert("Refresh error", e.message ?? "Unknown error");
+      }
     } finally {
+      // Always reset refreshing state, even on error
+      isRefreshingRef.current = false;
       setRefreshing(false);
     }
   }, [address, activeChainId, activeNetwork, fetchTransactions]);
 
   useEffect(() => {
-    if (address && activeNetwork) {
+    if (address && activeNetwork && !isRefreshingRef.current) {
       refresh();
     }
-  }, [address, activeChainId, activeNetwork, refresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, activeChainId, activeNetwork]);
 
   const onReset = async () => {
     Alert.alert(
