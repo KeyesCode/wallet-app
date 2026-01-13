@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   Modal,
 } from "react-native";
+import Clipboard from "@react-native-clipboard/clipboard";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { clearWallet } from "../crypto/vault";
@@ -177,6 +178,13 @@ export default function WalletScreen({ navigation }: Props) {
     }
   };
 
+  const copyAddressToClipboard = () => {
+    if (address) {
+      Clipboard.setString(address);
+      Alert.alert("Copied", "Address copied to clipboard");
+    }
+  };
+
 
   const nativeBalance = tokenBalances.find((tb) => tb.token.isNative);
   const erc20Balances = tokenBalances.filter((tb) => !tb.token.isNative);
@@ -227,9 +235,12 @@ export default function WalletScreen({ navigation }: Props) {
         <>
           <Text style={styles.label}>Account: {activeAccount.name}</Text>
           <Text style={styles.label}>Address</Text>
-          <Text selectable style={styles.mono}>
-            {address}
-          </Text>
+          <TouchableOpacity onPress={copyAddressToClipboard} activeOpacity={0.7}>
+            <Text style={styles.addressText}>
+              {address}
+            </Text>
+            <Text style={styles.copyHint}>Tap to copy</Text>
+          </TouchableOpacity>
         </>
       )}
 
@@ -512,6 +523,22 @@ const styles = StyleSheet.create({
   },
   label: { marginTop: 8, fontWeight: "600" },
   mono: { fontFamily: "Courier", fontSize: 13 },
+  addressText: {
+    fontFamily: "Courier",
+    fontSize: 13,
+    color: "#007AFF",
+    padding: 8,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  copyHint: {
+    fontSize: 11,
+    color: "#666",
+    marginTop: 4,
+    textAlign: "center",
+  },
   balance: { fontSize: 28, fontWeight: "800" },
   row: { flexDirection: "row", gap: 12, marginTop: 12 },
   modalOverlay: {
