@@ -46,6 +46,13 @@ export const EVM_NETWORKS: Record<number, EvmNetwork> = {
     chainId: 137,
     type: "evm",
   },
+  11155111: {
+    name: "Sepolia",
+    rpcUrl: "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+    nativeSymbol: "ETH",
+    chainId: 11155111,
+    type: "evm",
+  },
 };
 
 export const SOLANA_NETWORKS: Record<string, SolanaNetwork> = {

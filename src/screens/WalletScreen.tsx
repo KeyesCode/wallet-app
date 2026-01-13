@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   Modal,
 } from "react-native";
-import Clipboard from "@react-native-clipboard/clipboard";
+import * as Clipboard from "expo-clipboard";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { clearWallet } from "../crypto/vault";
@@ -178,9 +178,9 @@ export default function WalletScreen({ navigation }: Props) {
     }
   };
 
-  const copyAddressToClipboard = () => {
+  const copyAddressToClipboard = async () => {
     if (address) {
-      Clipboard.setString(address);
+      await Clipboard.setStringAsync(address);
       Alert.alert("Copied", "Address copied to clipboard");
     }
   };
