@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Button, Alert, StyleSheet } from "react-native";
+import { View, Text, TextInput, Button, Alert, StyleSheet, Pressable } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { generateMnemonic, validateMnemonic } from "../crypto/evm";
@@ -10,13 +10,29 @@ export default function WelcomeScreen({ navigation }: Props) {
   const [mnemonic, setMnemonic] = useState("");
 
   const onCreate = async () => {
-    const m = generateMnemonic();
-    setMnemonic(m);
-    Alert.alert(
-      "Wallet created",
-      "Save your mnemonic safely! You'll set a PIN next."
-    );
-    navigation.navigate("SetPin", { mnemonic: m });
+    console.log("onCreate called");
+    try {
+      console.log("Generating mnemonic...");
+      const m = generateMnemonic();
+      console.log("Mnemonic generated:", m.substring(0, 20) + "...");
+      setMnemonic(m);
+      Alert.alert(
+        "Wallet created",
+        "Save your mnemonic safely! You'll set a PIN next.",
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              console.log("Navigating to SetPin");
+              navigation.navigate("SetPin", { mnemonic: m });
+            },
+          },
+        ]
+      );
+    } catch (e: any) {
+      console.error("Error creating wallet:", e);
+      Alert.alert("Error", e?.message || "Failed to create wallet");
+    }
   };
 
   const onImport = async () => {
@@ -32,7 +48,9 @@ export default function WelcomeScreen({ navigation }: Props) {
     <View style={styles.container}>
       <Text style={styles.title}>EVM Wallet (Expo MVP)</Text>
 
-      <Button title="Create New Wallet" onPress={onCreate} />
+      <Pressable style={styles.button} onPress={onCreate}>
+        <Text style={styles.buttonText}>Create New Wallet</Text>
+      </Pressable>
 
       <Text style={styles.label}>Or import seed phrase:</Text>
       <TextInput
@@ -42,7 +60,9 @@ export default function WelcomeScreen({ navigation }: Props) {
         onChangeText={setMnemonic}
         multiline
       />
-      <Button title="Import Wallet" onPress={onImport} />
+      <Pressable style={styles.button} onPress={onImport}>
+        <Text style={styles.buttonText}>Import Wallet</Text>
+      </Pressable>
     </View>
   );
 }
@@ -57,5 +77,17 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     minHeight: 90,
+  },
+  button: {
+    backgroundColor: "#007AFF",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

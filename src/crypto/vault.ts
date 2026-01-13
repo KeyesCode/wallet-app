@@ -1,6 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import { pbkdf2 } from "@noble/hashes/pbkdf2";
-import { sha256 } from "@noble/hashes/sha256";
+import { sha256 } from "@noble/hashes/sha2";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
 import * as nacl from "tweetnacl";
 import * as naclUtil from "tweetnacl-util";
