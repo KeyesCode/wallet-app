@@ -22,7 +22,8 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
   const [isLoading, setIsLoading] = useState(true);
-  const [initialRoute, setInitialRoute] = useState<keyof RootStackParamList>("Welcome");
+  const [initialRoute, setInitialRoute] =
+    useState<keyof RootStackParamList>("Welcome");
 
   useEffect(() => {
     (async () => {
@@ -65,4 +66,3 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 });
-

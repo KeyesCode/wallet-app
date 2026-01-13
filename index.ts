@@ -1,3 +1,6 @@
+// Polyfill crypto.getRandomValues for React Native (required by @scure/bip39)
+import 'react-native-get-random-values';
+import 'react-native-gesture-handler';
 import { registerRootComponent } from 'expo';
 
 import App from './App';
