@@ -70,7 +70,27 @@ export async function getTransactionHistory(
       throw new Error(error.message || `HTTP ${response.status}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    
+    // Log received data for debugging
+    console.log('[API] Received transaction history:', {
+      itemCount: data.items?.length || 0,
+      firstItem: data.items?.[0] ? {
+        hash: data.items[0].hash,
+        value: data.items[0].value,
+        symbol: data.items[0].symbol,
+        assetType: data.items[0].assetType,
+        direction: data.items[0].direction,
+      } : null,
+      allItems: data.items?.map((item: TxItem) => ({
+        hash: item.hash.substring(0, 10) + '...',
+        value: item.value,
+        symbol: item.symbol,
+        assetType: item.assetType,
+      })) || [],
+    });
+
+    return data;
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {

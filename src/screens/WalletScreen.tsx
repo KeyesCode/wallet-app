@@ -78,6 +78,18 @@ export default function WalletScreen({ navigation }: Props) {
           pageSize: 20,
         });
 
+        // Log what we received and are setting
+        console.log('[WalletScreen] Setting transactions:', {
+          count: response.items.length,
+          transactions: response.items.map((tx) => ({
+            hash: tx.hash.substring(0, 10) + '...',
+            value: tx.value,
+            symbol: tx.symbol,
+            assetType: tx.assetType,
+            direction: tx.direction,
+          })),
+        });
+
         if (append) {
           setTransactions((prev) => [...prev, ...response.items]);
         } else {
