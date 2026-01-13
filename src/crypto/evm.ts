@@ -22,24 +22,32 @@ export function deriveEvmWalletFromMnemonic(
 
 export async function getNativeBalanceWei(
   address: string,
-  rpcUrl: string
+  chainId: number,
+  customRpcUrl?: string | null
 ): Promise<bigint> {
-  const balHex = await rpcCall<string>("eth_getBalance", [address, "latest"], rpcUrl);
+  const balHex = await rpcCall<string>("eth_getBalance", [address, "latest"], chainId, customRpcUrl);
   return BigInt(balHex);
 }
 
-export async function getFeeData(rpcUrl: string): Promise<{
+export async function getFeeData(
+  chainId: number,
+  customRpcUrl?: string | null
+): Promise<{
   maxFeePerGas: bigint;
   maxPriorityFeePerGas: bigint;
 }> {
+  console.log("[getFeeData] Getting latest block number...");
   // Simple approach: use eth_feeHistory to estimate priority fee
   // MVP: fallback to a safe priority fee if needed.
-  const latestBlock = await rpcCall<string>("eth_blockNumber", [], rpcUrl);
+  const latestBlock = await rpcCall<string>("eth_blockNumber", [], chainId, customRpcUrl);
+  console.log("[getFeeData] Latest block:", latestBlock);
+  
+  console.log("[getFeeData] Getting fee history...");
   const feeHistory = await rpcCall<any>("eth_feeHistory", [
     "0x5",
     latestBlock,
     [10, 20, 30],
-  ], rpcUrl);
+  ], chainId, customRpcUrl);
 
   const baseFeePerGas = BigInt(feeHistory.baseFeePerGas.slice(-1)[0]);
   // reward is an array of arrays (per block) of hex values; take last block median-ish
@@ -48,6 +56,12 @@ export async function getFeeData(rpcUrl: string): Promise<{
 
   const maxPriorityFeePerGas = priority > 0n ? priority : 1_500_000_000n; // 1.5 gwei fallback
   const maxFeePerGas = baseFeePerGas * 2n + maxPriorityFeePerGas;
+
+  console.log("[getFeeData] Calculated fees:", {
+    baseFeePerGas: baseFeePerGas.toString(),
+    maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
+    maxFeePerGas: maxFeePerGas.toString(),
+  });
 
   return { maxFeePerGas, maxPriorityFeePerGas };
 }
@@ -58,7 +72,8 @@ export async function estimateGas(
     to: string;
     valueWei: bigint;
   },
-  rpcUrl: string
+  chainId: number,
+  customRpcUrl?: string | null
 ): Promise<bigint> {
   const gasHex = await rpcCall<string>("eth_estimateGas", [
     {
@@ -66,7 +81,7 @@ export async function estimateGas(
       to: params.to,
       value: "0x" + params.valueWei.toString(16),
     },
-  ], rpcUrl);
+  ], chainId, customRpcUrl);
   return BigInt(gasHex);
 }
 
@@ -75,39 +90,74 @@ export async function sendEth(params: {
   to: string;
   amountEth: string;
   chainId: number;
-  rpcUrl: string;
+  customRpcUrl?: string | null;
   accountIndex?: number;
 }): Promise<string> {
-  const wallet = deriveEvmWalletFromMnemonic(
-    params.mnemonic,
-    params.accountIndex ?? 0
-  );
-
-  const from = await wallet.getAddress();
-  const valueWei = parseEther(params.amountEth);
-
-  const nonceHex = await rpcCall<string>("eth_getTransactionCount", [
-    from,
-    "latest",
-  ], params.rpcUrl);
-  const nonce = Number(BigInt(nonceHex));
-
-  const { maxFeePerGas, maxPriorityFeePerGas } = await getFeeData(params.rpcUrl);
-  const gasLimit = await estimateGas({ from, to: params.to, valueWei }, params.rpcUrl);
-
-  const tx = {
-    type: 2,
-    chainId: params.chainId,
+  console.log("[sendEth] Starting transaction", {
     to: params.to,
-    value: valueWei,
-    nonce,
-    gasLimit,
-    maxFeePerGas,
-    maxPriorityFeePerGas,
-  };
+    amountEth: params.amountEth,
+    chainId: params.chainId,
+    accountIndex: params.accountIndex,
+    usingCustomRpc: !!params.customRpcUrl,
+  });
 
-  const signed = await wallet.signTransaction(tx);
-  const txHash = await rpcCall<string>("eth_sendRawTransaction", [signed], params.rpcUrl);
-  return txHash;
+  try {
+    console.log("[sendEth] Deriving wallet...");
+    const wallet = deriveEvmWalletFromMnemonic(
+      params.mnemonic,
+      params.accountIndex ?? 0
+    );
+
+    console.log("[sendEth] Getting wallet address...");
+    const from = await wallet.getAddress();
+    console.log("[sendEth] From address:", from);
+
+    console.log("[sendEth] Parsing amount...");
+    const valueWei = parseEther(params.amountEth);
+    console.log("[sendEth] Amount in Wei:", valueWei.toString());
+
+    console.log("[sendEth] Getting transaction count (nonce)...");
+    const nonceHex = await rpcCall<string>("eth_getTransactionCount", [
+      from,
+      "latest",
+    ], params.chainId, params.customRpcUrl);
+    const nonce = Number(BigInt(nonceHex));
+    console.log("[sendEth] Nonce:", nonce);
+
+    console.log("[sendEth] Getting fee data...");
+    const { maxFeePerGas, maxPriorityFeePerGas } = await getFeeData(params.chainId, params.customRpcUrl);
+    console.log("[sendEth] Fee data:", {
+      maxFeePerGas: maxFeePerGas.toString(),
+      maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
+    });
+
+    console.log("[sendEth] Estimating gas...");
+    const gasLimit = await estimateGas({ from, to: params.to, valueWei }, params.chainId, params.customRpcUrl);
+    console.log("[sendEth] Gas limit:", gasLimit.toString());
+
+    console.log("[sendEth] Building transaction...");
+    const tx = {
+      type: 2,
+      chainId: params.chainId,
+      to: params.to,
+      value: valueWei,
+      nonce,
+      gasLimit,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+    };
+
+    console.log("[sendEth] Signing transaction...");
+    const signed = await wallet.signTransaction(tx);
+    console.log("[sendEth] Transaction signed, sending to network...");
+    
+    const txHash = await rpcCall<string>("eth_sendRawTransaction", [signed], params.chainId, params.customRpcUrl);
+    console.log("[sendEth] Transaction sent! Hash:", txHash);
+    
+    return txHash;
+  } catch (error: any) {
+    console.error("[sendEth] Error:", error);
+    throw error;
+  }
 }
 

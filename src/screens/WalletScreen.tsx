@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { clearWallet } from "../crypto/vault";
 import { useWallet } from "../context/WalletContext";
@@ -37,6 +38,8 @@ export default function WalletScreen({ navigation }: Props) {
     activeChainId,
     setActiveChainId,
     activeNetwork,
+    activeCustomRpcUrl,
+    refreshCustomRpcUrl,
   } = useWallet();
   const [address, setAddress] = useState<string>("");
   const [tokenBalances, setTokenBalances] = useState<TokenBalance[]>([]);
@@ -116,7 +119,7 @@ export default function WalletScreen({ navigation }: Props) {
       // Fetch balances and transactions in parallel
       // Use Promise.allSettled so one failure doesn't block the other
       const [balanceResult, txResult] = await Promise.allSettled([
-        fetchTokenBalances(tokens, address, activeNetwork.rpcUrl),
+        fetchTokenBalances(tokens, address, activeChainId, activeCustomRpcUrl),
         fetchTransactions(undefined, false),
       ]);
 
@@ -152,6 +155,13 @@ export default function WalletScreen({ navigation }: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, activeChainId, activeNetwork]);
+
+  // Refresh custom RPC URL when screen comes into focus (e.g., returning from Settings)
+  useFocusEffect(
+    useCallback(() => {
+      refreshCustomRpcUrl();
+    }, [refreshCustomRpcUrl])
+  );
 
   const onReset = async () => {
     Alert.alert(
@@ -412,6 +422,10 @@ export default function WalletScreen({ navigation }: Props) {
       </View>
 
       <View style={{ marginTop: 24, gap: 12 }}>
+        <Button
+          title="Settings"
+          onPress={() => navigation.navigate("Settings")}
+        />
         <Button
           title="Change PIN"
           onPress={() => navigation.navigate("ChangePin")}

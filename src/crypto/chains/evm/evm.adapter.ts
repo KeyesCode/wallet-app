@@ -15,7 +15,8 @@ export class EvmAdapter implements ChainAdapter {
 
   async getNativeBalance(
     address: string,
-    chainId?: number | string
+    chainId?: number | string,
+    customRpcUrl?: string | null
   ): Promise<string> {
     if (chainId === undefined || typeof chainId !== "number") {
       throw new Error("getNativeBalance requires chainId for EVM chains");
@@ -28,7 +29,7 @@ export class EvmAdapter implements ChainAdapter {
 
     const { getNativeBalanceWei } = await import("../../evm");
     const { formatEther } = await import("ethers");
-    const balance = await getNativeBalanceWei(address, network.rpcUrl);
+    const balance = await getNativeBalanceWei(address, chainId, customRpcUrl);
     return formatEther(balance);
   }
 
@@ -38,6 +39,7 @@ export class EvmAdapter implements ChainAdapter {
     amount: string;
     accountIndex: number;
     chainId?: number | string;
+    customRpcUrl?: string | null;
   }): Promise<string> {
     if (args.chainId === undefined || typeof args.chainId !== "number") {
       throw new Error("sendNative requires chainId for EVM chains");
@@ -53,7 +55,7 @@ export class EvmAdapter implements ChainAdapter {
       to: args.to,
       amountEth: args.amount,
       chainId: args.chainId,
-      rpcUrl: network.rpcUrl,
+      customRpcUrl: args.customRpcUrl,
       accountIndex: args.accountIndex,
     });
   }

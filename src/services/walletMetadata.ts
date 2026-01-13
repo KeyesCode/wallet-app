@@ -4,6 +4,7 @@ import { getDefaultChainId } from "../crypto/networks";
 
 const WALLET_METADATA_KEY = "wallet.metadata";
 const ACTIVE_CHAIN_ID_KEY = "wallet.activeChainId";
+const CUSTOM_RPC_URLS_KEY = "wallet.customRpcUrls";
 
 export interface Account {
   index: number;
@@ -154,5 +155,60 @@ export async function saveActiveChainId(chainId: number): Promise<void> {
     console.error("Error saving active chain ID:", e);
     throw e;
   }
+}
+
+/**
+ * Load custom RPC URLs from AsyncStorage
+ */
+export async function loadCustomRpcUrls(): Promise<Record<number, string>> {
+  try {
+    const data = await AsyncStorage.getItem(CUSTOM_RPC_URLS_KEY);
+    if (!data) return {};
+    return JSON.parse(data) as Record<number, string>;
+  } catch (e) {
+    console.error("Error loading custom RPC URLs:", e);
+    return {};
+  }
+}
+
+/**
+ * Save custom RPC URLs to AsyncStorage
+ */
+export async function saveCustomRpcUrls(
+  customRpcUrls: Record<number, string>
+): Promise<void> {
+  try {
+    await AsyncStorage.setItem(
+      CUSTOM_RPC_URLS_KEY,
+      JSON.stringify(customRpcUrls)
+    );
+  } catch (e) {
+    console.error("Error saving custom RPC URLs:", e);
+    throw e;
+  }
+}
+
+/**
+ * Set a custom RPC URL for a specific chain ID
+ */
+export async function setCustomRpcUrl(
+  chainId: number,
+  rpcUrl: string | null
+): Promise<void> {
+  const customRpcUrls = await loadCustomRpcUrls();
+  if (rpcUrl) {
+    customRpcUrls[chainId] = rpcUrl;
+  } else {
+    delete customRpcUrls[chainId];
+  }
+  await saveCustomRpcUrls(customRpcUrls);
+}
+
+/**
+ * Get custom RPC URL for a specific chain ID
+ */
+export async function getCustomRpcUrl(chainId: number): Promise<string | null> {
+  const customRpcUrls = await loadCustomRpcUrls();
+  return customRpcUrls[chainId] || null;
 }
 

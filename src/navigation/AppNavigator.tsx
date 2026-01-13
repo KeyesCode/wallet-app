@@ -7,6 +7,7 @@ import SendScreen from "../screens/SendScreen";
 import SetPinScreen from "../screens/SetPinScreen";
 import UnlockScreen from "../screens/UnlockScreen";
 import ChangePinScreen from "../screens/ChangePinScreen";
+import SettingsScreen from "../screens/SettingsScreen";
 import { hasEncryptedMnemonic } from "../crypto/vault";
 
 export type RootStackParamList = {
@@ -16,6 +17,7 @@ export type RootStackParamList = {
   Wallet: undefined;
   Send: undefined;
   ChangePin: undefined;
+  Settings: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -55,6 +57,7 @@ export default function AppNavigator() {
       <Stack.Screen name="Wallet" component={WalletScreen} />
       <Stack.Screen name="Send" component={SendScreen} />
       <Stack.Screen name="ChangePin" component={ChangePinScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>
   );
 }

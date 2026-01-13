@@ -226,8 +226,21 @@ export async function fetchTokenBalance(
 export async function fetchTokenBalances(
   tokens: Token[],
   userAddress: string,
-  rpcUrl: string
+  chainId: number,
+  customRpcUrl?: string | null
 ): Promise<TokenBalance[]> {
+  // Determine RPC URL to use
+  // Note: JsonRpcProvider needs a direct RPC URL, not our backend proxy
+  // So we use customRpcUrl if provided, otherwise we'll need the network default
+  // For now, we'll get it from networks - in the future we can refactor to use rpcCall
+  const { getNetwork } = await import("../../networks");
+  const network = getNetwork(chainId);
+  const rpcUrl = customRpcUrl || network?.rpcUrl;
+  
+  if (!rpcUrl) {
+    throw new Error(`No RPC URL available for chainId ${chainId}`);
+  }
+
   const promises = tokens.map((token) =>
     fetchTokenBalance(token, userAddress, rpcUrl).catch((error) => {
       console.error(`Error fetching balance for ${token.symbol}:`, error);

@@ -48,7 +48,7 @@ export const EVM_NETWORKS: Record<number, EvmNetwork> = {
   },
   11155111: {
     name: "Sepolia",
-    rpcUrl: "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+    rpcUrl: "https://0xrpc.io/sep",
     nativeSymbol: "ETH",
     chainId: 11155111,
     type: "evm",
@@ -106,4 +106,3 @@ export function getDefaultChainId(): number {
 export function isEvmChain(chainId: number): boolean {
   return chainId in EVM_NETWORKS;
 }
-
