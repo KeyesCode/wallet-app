@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { storeMnemonicWithPin } from "../crypto/vault";
 import { useWallet } from "../context/WalletContext";
+import { initializeWalletMetadata } from "../services/walletMetadata";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SetPin">;
 
@@ -28,6 +29,8 @@ export default function SetPinScreen({ navigation, route }: Props) {
     try {
       setIsSetting(true);
       await storeMnemonicWithPin(mnemonic, pin);
+      // Initialize wallet metadata with first account
+      await initializeWalletMetadata(mnemonic);
       setMnemonic(mnemonic); // Store in memory
       Alert.alert("Success", "PIN set successfully");
       navigation.replace("Wallet");

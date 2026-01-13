@@ -8,7 +8,7 @@ import { useWallet } from "../context/WalletContext";
 type Props = NativeStackScreenProps<RootStackParamList, "Send">;
 
 export default function SendScreen({ navigation }: Props) {
-  const { mnemonic } = useWallet();
+  const { mnemonic, activeAccountIndex } = useWallet();
   const [to, setTo] = useState("");
   const [amountEth, setAmountEth] = useState("0.001");
   const [sending, setSending] = useState(false);
@@ -29,6 +29,7 @@ export default function SendScreen({ navigation }: Props) {
         to: to.trim(),
         amountEth: amountEth.trim(),
         chainId,
+        accountIndex: activeAccountIndex,
       });
       Alert.alert("Sent!", `Tx: ${txHash}`);
       navigation.goBack();

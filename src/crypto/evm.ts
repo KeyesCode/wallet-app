@@ -69,8 +69,12 @@ export async function sendEth(params: {
   to: string;
   amountEth: string;
   chainId: number;
+  accountIndex?: number;
 }): Promise<string> {
-  const wallet = deriveEvmWalletFromMnemonic(params.mnemonic, 0);
+  const wallet = deriveEvmWalletFromMnemonic(
+    params.mnemonic,
+    params.accountIndex ?? 0
+  );
 
   const from = await wallet.getAddress();
   const valueWei = parseEther(params.amountEth);
