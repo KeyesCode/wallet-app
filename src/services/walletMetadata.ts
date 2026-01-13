@@ -1,7 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { deriveEvmWalletFromMnemonic } from "../crypto/evm";
+import { getDefaultChainId } from "../crypto/networks";
 
 const WALLET_METADATA_KEY = "wallet.metadata";
+const ACTIVE_CHAIN_ID_KEY = "wallet.activeChainId";
 
 export interface Account {
   index: number;
@@ -121,8 +123,36 @@ export async function setActiveAccountIndex(index: number): Promise<void> {
 export async function clearWalletMetadata(): Promise<void> {
   try {
     await AsyncStorage.removeItem(WALLET_METADATA_KEY);
+    await AsyncStorage.removeItem(ACTIVE_CHAIN_ID_KEY);
   } catch (e) {
     console.error("Error clearing wallet metadata:", e);
+  }
+}
+
+/**
+ * Load active chain ID from AsyncStorage
+ */
+export async function loadActiveChainId(): Promise<number> {
+  try {
+    const data = await AsyncStorage.getItem(ACTIVE_CHAIN_ID_KEY);
+    if (!data) return getDefaultChainId();
+    const chainId = Number(data);
+    return isNaN(chainId) ? getDefaultChainId() : chainId;
+  } catch (e) {
+    console.error("Error loading active chain ID:", e);
+    return getDefaultChainId();
+  }
+}
+
+/**
+ * Save active chain ID to AsyncStorage
+ */
+export async function saveActiveChainId(chainId: number): Promise<void> {
+  try {
+    await AsyncStorage.setItem(ACTIVE_CHAIN_ID_KEY, chainId.toString());
+  } catch (e) {
+    console.error("Error saving active chain ID:", e);
+    throw e;
   }
 }
 

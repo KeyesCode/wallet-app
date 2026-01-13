@@ -4,7 +4,10 @@ import {
   initializeWalletMetadata,
   Account,
   WalletMetadata,
+  loadActiveChainId,
+  saveActiveChainId,
 } from "../services/walletMetadata";
+import { getNetwork, getDefaultChainId } from "../crypto/networks";
 
 interface WalletContextType {
   mnemonic: string | null;
@@ -16,6 +19,9 @@ interface WalletContextType {
   setActiveAccountIndex: (index: number) => Promise<void>;
   addAccount: (accountName?: string) => Promise<Account>;
   refreshAccounts: () => Promise<void>;
+  activeChainId: number;
+  setActiveChainId: (chainId: number) => Promise<void>;
+  activeNetwork: ReturnType<typeof getNetwork> | undefined;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -23,7 +29,13 @@ const WalletContext = createContext<WalletContextType | undefined>(undefined);
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [mnemonic, setMnemonic] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<WalletMetadata | null>(null);
+  const [activeChainId, setActiveChainIdState] = useState<number>(getDefaultChainId());
   const [isLoading, setIsLoading] = useState(true);
+
+  // Load active chain ID on mount
+  useEffect(() => {
+    loadActiveChainId().then(setActiveChainIdState);
+  }, []);
 
   // Load metadata when mnemonic is set
   useEffect(() => {
@@ -76,12 +88,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const setActiveChainId = async (chainId: number) => {
+    await saveActiveChainId(chainId);
+    setActiveChainIdState(chainId);
+  };
+
   const activeAccount =
     metadata && metadata.accounts.length > 0
       ? metadata.accounts.find(
           (a) => a.index === metadata.activeAccountIndex
         ) || metadata.accounts[0]
       : null;
+
+  const activeNetwork = getNetwork(activeChainId);
 
   return (
     <WalletContext.Provider
@@ -95,6 +114,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setActiveAccountIndex,
         addAccount,
         refreshAccounts,
+        activeChainId,
+        setActiveChainId,
+        activeNetwork,
       }}
     >
       {children}

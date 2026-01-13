@@ -19,6 +19,7 @@ import { getAllTokens } from "../crypto/chains/evm/tokens";
 import { fetchTokenBalances, TokenBalance } from "../crypto/chains/evm/erc20";
 import { getTransactionHistory, TxItem } from "../services/api";
 import { clearWalletMetadata } from "../services/walletMetadata";
+import { EVM_NETWORKS, getAvailableChainIds } from "../crypto/networks";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Wallet">;
 
@@ -32,6 +33,9 @@ export default function WalletScreen({ navigation }: Props) {
     setActiveAccountIndex,
     addAccount,
     refreshAccounts,
+    activeChainId,
+    setActiveChainId,
+    activeNetwork,
   } = useWallet();
   const [address, setAddress] = useState<string>("");
   const [tokenBalances, setTokenBalances] = useState<TokenBalance[]>([]);
@@ -41,9 +45,8 @@ export default function WalletScreen({ navigation }: Props) {
   const [loadingTx, setLoadingTx] = useState(false);
   const [loadingMoreTx, setLoadingMoreTx] = useState(false);
   const [showAccountPicker, setShowAccountPicker] = useState(false);
+  const [showNetworkPicker, setShowNetworkPicker] = useState(false);
   const [isAddingAccount, setIsAddingAccount] = useState(false);
-
-  const chainId = Number(process.env.EXPO_PUBLIC_EVM_CHAIN_ID ?? "11155111");
 
   // Update address when active account changes
   useEffect(() => {
@@ -59,7 +62,7 @@ export default function WalletScreen({ navigation }: Props) {
 
   const fetchTransactions = useCallback(
     async (pageKey?: string, append = false) => {
-      if (!address) return;
+      if (!address || !activeChainId) return;
 
       try {
         if (append) {
@@ -68,7 +71,7 @@ export default function WalletScreen({ navigation }: Props) {
           setLoadingTx(true);
         }
 
-        const response = await getTransactionHistory(chainId, address, {
+        const response = await getTransactionHistory(activeChainId, address, {
           pageKey,
           pageSize: 20,
         });
@@ -88,16 +91,16 @@ export default function WalletScreen({ navigation }: Props) {
         setLoadingMoreTx(false);
       }
     },
-    [address, chainId]
+    [address, activeChainId]
   );
 
   const refresh = useCallback(async () => {
-    if (!address) return;
+    if (!address || !activeNetwork) return;
 
     try {
       setRefreshing(true);
-      const tokens = getAllTokens(chainId);
-      const balances = await fetchTokenBalances(tokens, address);
+      const tokens = getAllTokens(activeChainId);
+      const balances = await fetchTokenBalances(tokens, address, activeNetwork.rpcUrl);
       setTokenBalances(balances);
       await fetchTransactions(undefined, false);
     } catch (e: any) {
@@ -105,13 +108,13 @@ export default function WalletScreen({ navigation }: Props) {
     } finally {
       setRefreshing(false);
     }
-  }, [address, chainId, fetchTransactions]);
+  }, [address, activeChainId, activeNetwork, fetchTransactions]);
 
   useEffect(() => {
-    if (address) {
+    if (address && activeNetwork) {
       refresh();
     }
-  }, [address, refresh]);
+  }, [address, activeChainId, activeNetwork, refresh]);
 
   const onReset = async () => {
     Alert.alert(
@@ -160,6 +163,20 @@ export default function WalletScreen({ navigation }: Props) {
     }
   };
 
+  const onSwitchNetwork = async (chainId: number) => {
+    if (chainId === activeChainId) {
+      setShowNetworkPicker(false);
+      return;
+    }
+    try {
+      await setActiveChainId(chainId);
+      setShowNetworkPicker(false);
+      // Refresh will be triggered by useEffect when activeChainId changes
+    } catch (e: any) {
+      Alert.alert("Error", e.message ?? "Failed to switch network");
+    }
+  };
+
 
   const nativeBalance = tokenBalances.find((tb) => tb.token.isNative);
   const erc20Balances = tokenBalances.filter((tb) => !tb.token.isNative);
@@ -190,6 +207,19 @@ export default function WalletScreen({ navigation }: Props) {
             onPress={onAddAccount}
             disabled={isAddingAccount}
           />
+        </View>
+        <View style={styles.networkControls}>
+          <TouchableOpacity
+            style={styles.networkButton}
+            onPress={() => setShowNetworkPicker(true)}
+          >
+            <Text style={styles.networkButtonText}>
+              {activeNetwork?.name || "Network"}
+            </Text>
+            <Text style={styles.networkButtonSubtext}>
+              {activeNetwork?.nativeSymbol || ""}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -382,6 +412,52 @@ export default function WalletScreen({ navigation }: Props) {
           </View>
         </View>
       </Modal>
+
+      {/* Network Picker Modal */}
+      <Modal
+        visible={showNetworkPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowNetworkPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Network</Text>
+            <ScrollView>
+              {getAvailableChainIds().map((chainId) => {
+                const network = EVM_NETWORKS[chainId];
+                if (!network) return null;
+                return (
+                  <TouchableOpacity
+                    key={chainId}
+                    style={[
+                      styles.accountOption,
+                      chainId === activeChainId && styles.accountOptionActive,
+                    ]}
+                    onPress={() => onSwitchNetwork(chainId)}
+                  >
+                    <View style={styles.accountOptionContent}>
+                      <Text style={styles.accountOptionName}>
+                        {network.name}
+                      </Text>
+                      <Text style={styles.accountOptionAddress} numberOfLines={1}>
+                        {network.nativeSymbol} • Chain ID: {chainId}
+                      </Text>
+                    </View>
+                    {chainId === activeChainId && (
+                      <Text style={styles.accountOptionCheck}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Button
+              title="Close"
+              onPress={() => setShowNetworkPicker(false)}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -411,6 +487,25 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   accountButtonSubtext: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 2,
+  },
+  networkControls: {
+    marginTop: 12,
+  },
+  networkButton: {
+    padding: 12,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  networkButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  networkButtonSubtext: {
     fontSize: 12,
     color: "#666",
     marginTop: 2,

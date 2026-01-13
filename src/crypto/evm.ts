@@ -20,23 +20,26 @@ export function deriveEvmWalletFromMnemonic(
   return new Wallet(hd.privateKey);
 }
 
-export async function getNativeBalanceWei(address: string): Promise<bigint> {
-  const balHex = await rpcCall<string>("eth_getBalance", [address, "latest"]);
+export async function getNativeBalanceWei(
+  address: string,
+  rpcUrl: string
+): Promise<bigint> {
+  const balHex = await rpcCall<string>("eth_getBalance", [address, "latest"], rpcUrl);
   return BigInt(balHex);
 }
 
-export async function getFeeData(): Promise<{
+export async function getFeeData(rpcUrl: string): Promise<{
   maxFeePerGas: bigint;
   maxPriorityFeePerGas: bigint;
 }> {
   // Simple approach: use eth_feeHistory to estimate priority fee
   // MVP: fallback to a safe priority fee if needed.
-  const latestBlock = await rpcCall<string>("eth_blockNumber", []);
+  const latestBlock = await rpcCall<string>("eth_blockNumber", [], rpcUrl);
   const feeHistory = await rpcCall<any>("eth_feeHistory", [
     "0x5",
     latestBlock,
     [10, 20, 30],
-  ]);
+  ], rpcUrl);
 
   const baseFeePerGas = BigInt(feeHistory.baseFeePerGas.slice(-1)[0]);
   // reward is an array of arrays (per block) of hex values; take last block median-ish
@@ -49,18 +52,21 @@ export async function getFeeData(): Promise<{
   return { maxFeePerGas, maxPriorityFeePerGas };
 }
 
-export async function estimateGas(params: {
-  from: string;
-  to: string;
-  valueWei: bigint;
-}): Promise<bigint> {
+export async function estimateGas(
+  params: {
+    from: string;
+    to: string;
+    valueWei: bigint;
+  },
+  rpcUrl: string
+): Promise<bigint> {
   const gasHex = await rpcCall<string>("eth_estimateGas", [
     {
       from: params.from,
       to: params.to,
       value: "0x" + params.valueWei.toString(16),
     },
-  ]);
+  ], rpcUrl);
   return BigInt(gasHex);
 }
 
@@ -69,6 +75,7 @@ export async function sendEth(params: {
   to: string;
   amountEth: string;
   chainId: number;
+  rpcUrl: string;
   accountIndex?: number;
 }): Promise<string> {
   const wallet = deriveEvmWalletFromMnemonic(
@@ -82,11 +89,11 @@ export async function sendEth(params: {
   const nonceHex = await rpcCall<string>("eth_getTransactionCount", [
     from,
     "latest",
-  ]);
+  ], params.rpcUrl);
   const nonce = Number(BigInt(nonceHex));
 
-  const { maxFeePerGas, maxPriorityFeePerGas } = await getFeeData();
-  const gasLimit = await estimateGas({ from, to: params.to, valueWei });
+  const { maxFeePerGas, maxPriorityFeePerGas } = await getFeeData(params.rpcUrl);
+  const gasLimit = await estimateGas({ from, to: params.to, valueWei }, params.rpcUrl);
 
   const tx = {
     type: 2,
@@ -100,7 +107,7 @@ export async function sendEth(params: {
   };
 
   const signed = await wallet.signTransaction(tx);
-  const txHash = await rpcCall<string>("eth_sendRawTransaction", [signed]);
+  const txHash = await rpcCall<string>("eth_sendRawTransaction", [signed], params.rpcUrl);
   return txHash;
 }
 

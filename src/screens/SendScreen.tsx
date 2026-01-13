@@ -8,17 +8,20 @@ import { useWallet } from "../context/WalletContext";
 type Props = NativeStackScreenProps<RootStackParamList, "Send">;
 
 export default function SendScreen({ navigation }: Props) {
-  const { mnemonic, activeAccountIndex } = useWallet();
+  const { mnemonic, activeAccountIndex, activeChainId, activeNetwork } = useWallet();
   const [to, setTo] = useState("");
   const [amountEth, setAmountEth] = useState("0.001");
   const [sending, setSending] = useState(false);
-
-  const chainId = Number(process.env.EXPO_PUBLIC_EVM_CHAIN_ID ?? "11155111");
 
   const onSend = async () => {
     if (!mnemonic) {
       Alert.alert("Error", "Wallet not unlocked");
       navigation.replace("Unlock");
+      return;
+    }
+
+    if (!activeNetwork) {
+      Alert.alert("Error", "No active network selected");
       return;
     }
 
@@ -28,7 +31,8 @@ export default function SendScreen({ navigation }: Props) {
         mnemonic,
         to: to.trim(),
         amountEth: amountEth.trim(),
-        chainId,
+        chainId: activeChainId,
+        rpcUrl: activeNetwork.rpcUrl,
         accountIndex: activeAccountIndex,
       });
       Alert.alert("Sent!", `Tx: ${txHash}`);
@@ -40,9 +44,11 @@ export default function SendScreen({ navigation }: Props) {
     }
   };
 
+  const nativeSymbol = activeNetwork?.nativeSymbol || "ETH";
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Send ETH</Text>
+      <Text style={styles.title}>Send {nativeSymbol}</Text>
 
       <Text style={styles.label}>To</Text>
       <TextInput
@@ -53,7 +59,7 @@ export default function SendScreen({ navigation }: Props) {
         autoCapitalize="none"
       />
 
-      <Text style={styles.label}>Amount (ETH)</Text>
+      <Text style={styles.label}>Amount ({nativeSymbol})</Text>
       <TextInput
         style={styles.input}
         value={amountEth}

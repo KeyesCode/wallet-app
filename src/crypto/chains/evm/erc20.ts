@@ -12,10 +12,6 @@ export const ERC20_ABI = [
   "function symbol() view returns (string)",
 ] as const;
 
-const RPC_URL = process.env.EXPO_PUBLIC_EVM_RPC_URL!;
-if (!RPC_URL) {
-  throw new Error("Missing EXPO_PUBLIC_EVM_RPC_URL");
-}
 
 // Cache keys
 const CACHE_PREFIX = "token_cache_";
@@ -76,6 +72,7 @@ async function cacheTokenMetadata(
  */
 export async function getTokenDecimals(
   tokenAddress: string,
+  rpcUrl: string,
   fallbackDecimals?: number
 ): Promise<number> {
   // Check cache first
@@ -91,7 +88,7 @@ export async function getTokenDecimals(
 
   // Fetch from contract
   try {
-    const provider = new JsonRpcProvider(RPC_URL);
+    const provider = new JsonRpcProvider(rpcUrl);
     const contract = new Contract(tokenAddress, ERC20_ABI, provider);
     const decimals = await contract.decimals();
     const symbol = await contract.symbol().catch(() => "UNKNOWN");
@@ -114,6 +111,7 @@ export async function getTokenDecimals(
  */
 export async function getTokenSymbol(
   tokenAddress: string,
+  rpcUrl: string,
   fallbackSymbol?: string
 ): Promise<string> {
   // Check cache first
@@ -129,7 +127,7 @@ export async function getTokenSymbol(
 
   // Fetch from contract
   try {
-    const provider = new JsonRpcProvider(RPC_URL);
+    const provider = new JsonRpcProvider(rpcUrl);
     const contract = new Contract(tokenAddress, ERC20_ABI, provider);
     const symbol = await contract.symbol();
     const decimals = await contract.decimals().catch(() => 18);
@@ -153,10 +151,11 @@ export async function getTokenSymbol(
 export async function getTokenBalance(
   tokenAddress: string,
   userAddress: string,
+  rpcUrl: string,
   decimals?: number
 ): Promise<string> {
   try {
-    const provider = new JsonRpcProvider(RPC_URL);
+    const provider = new JsonRpcProvider(rpcUrl);
     const contract = new Contract(tokenAddress, ERC20_ABI, provider);
 
     // Get balance
@@ -164,7 +163,7 @@ export async function getTokenBalance(
 
     // Get decimals (use provided, cached, or fetch)
     const tokenDecimals =
-      decimals ?? (await getTokenDecimals(tokenAddress, decimals));
+      decimals ?? (await getTokenDecimals(tokenAddress, rpcUrl, decimals));
 
     // Format balance
     return formatUnits(balance, tokenDecimals);
@@ -187,14 +186,15 @@ export interface TokenBalance {
  */
 export async function fetchTokenBalance(
   token: Token,
-  userAddress: string
+  userAddress: string,
+  rpcUrl: string
 ): Promise<TokenBalance> {
   if (token.isNative || token.address === "native") {
     // Native token balance
     const balHex = await rpcCall<string>("eth_getBalance", [
       userAddress,
       "latest",
-    ]);
+    ], rpcUrl);
     const balance = BigInt(balHex);
     const formatted = formatUnits(balance, token.decimals);
 
@@ -208,6 +208,7 @@ export async function fetchTokenBalance(
     const balance = await getTokenBalance(
       token.address,
       userAddress,
+      rpcUrl,
       token.decimals
     );
 
@@ -224,10 +225,11 @@ export async function fetchTokenBalance(
  */
 export async function fetchTokenBalances(
   tokens: Token[],
-  userAddress: string
+  userAddress: string,
+  rpcUrl: string
 ): Promise<TokenBalance[]> {
   const promises = tokens.map((token) =>
-    fetchTokenBalance(token, userAddress).catch((error) => {
+    fetchTokenBalance(token, userAddress, rpcUrl).catch((error) => {
       console.error(`Error fetching balance for ${token.symbol}:`, error);
       // Return zero balance on error
       return {

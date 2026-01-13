@@ -1,12 +1,11 @@
-const RPC_URL = process.env.EXPO_PUBLIC_EVM_RPC_URL!;
-if (!RPC_URL) {
-  throw new Error("Missing EXPO_PUBLIC_EVM_RPC_URL");
-}
-
 let rpcId = 1;
 
-export async function rpcCall<T>(method: string, params: any[]): Promise<T> {
-  const res = await fetch(RPC_URL, {
+export async function rpcCall<T>(
+  method: string,
+  params: any[],
+  rpcUrl: string
+): Promise<T> {
+  const res = await fetch(rpcUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
